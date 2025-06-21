@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block title %}Results - Google Ads Tracker{% endblock %}
+
+{% block extra_head %}
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .ai-insights-box {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-top: 2rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ai-insights-box::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0%, 100% { transform: rotate(0deg); }
+        50% { transform: rotate(180deg); }
+    }
+
+    .ai-icon {
+        background: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .campaign-row:hover {
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+    .loading-insights {
+        text-align: center;
+        padding: 2rem;
+        color: #6c757d;
+    }
+
+    .insights-text {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #2d3748;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stats-card {
+        transition: transform 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .table-custom {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .card-custom {
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .btn-custom {
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3><i class="fas fa-chart-bar me-2"></i>Campaign Performance Report</h3>
+        <p class="text-muted mb-0">Customer ID: {{ customer_id }} | Last {{ date_range }} days</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-custom">
+        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+    </a>
+</div>
+
+<!-- Key Metrics Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="metric-card">
+            <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+            <h4>${{ "%.2f"|format(total_spend) }}</h4>
+            <p class="mb-0">Total Spend</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <i class="fas fa-mouse-pointer fa-2x mb-2"></i>
+            <h4>{{ "{:,}".format(total_clicks) }}</h4>
+            <p class="mb-0">Total Clicks</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <i class="fas fa-eye fa-2x mb-2"></i>
+            <h4>{{ "{:,}".format(total_impressions) }}</h4>
+            <p class="mb-0">Total Impressions</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="metric-card">
+            <i class="fas fa-percentage fa-2x mb-2"></i>
+            <h4>{{ "%.2f"|format((total_clicks / total_impressions * 100) if total_impressions > 0 else 0) }}%</h4>
+            <p class="mb-0">Overall CTR</p>
+        </div>
+    </div>
+</div>
+
+<!-- Campaign Data Table -->
+<div class="card shadow card-custom">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>Campaign Details
+            {% if spend_data|length > 0 %}
+                <span class="badge bg-primary ms-2">{{ spend_data|length }} campaigns</span>
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if spend_data|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 table-custom">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Campaign Name</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Spend</th>
+                        <th>Clicks</th>
+                        <th>Impressions</th>
+                        <th>CTR</th>
+                        <th>CPC</th>
+                        <th>CPM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for campaign in spend_data %}
+                    {% set ctr = (campaign.clicks / campaign.impressions * 100) if campaign.impressions > 0 else 0 %}
+                    {% set cpc = (campaign.cost / campaign.clicks) if campaign.clicks > 0 else 0 %}
+                    {% set cpm = (campaign.cost / campaign.impressions * 1000) if campaign.impressions > 0 else 0 %}
+                    <tr class="campaign-row">
+                        <td>
+                            <strong>{{ campaign.campaign_name }}</strong>
+                            <br>
+                            <small class="text-muted">ID: {{ campaign.campaign_id }}</small>
+                        </td>
+                        <td>
+                            {% if campaign.campaign_status is defined %}
+                                <span class="badge bg-{{ 'success' if campaign.campaign_status == 'ENABLED' else 'secondary' }}">
+                                    {{ campaign.campaign_status }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info">ACTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ campaign.date }}</td>
+                        <td><strong>${{ "%.2f"|format(campaign.cost) }}</strong></td>
+                        <td>{{ "{:,}".format(campaign.clicks) }}</td>
+                        <td>{{ "{:,}".format(campaign.impressions) }}</td>
+                        <td>
+                            <span class="{% if ctr > 2 %}text-success{% elif ctr > 1 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ "%.2f"|format(ctr) }}%
+                            </span>
+                        </td>
+                        <td>${{ "%.2f"|format(cpc) }}</td>
+                        <td>
+                            {% if cpm > 0 %}
+                                ${{ "%.2f"|format(cpm) }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">No Campaigns Found</h4>
+            <p class="text-muted">No campaigns were found for the specified date range.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- AI Insights Section -->
+{% if spend_data|length > 0 %}
+<div class="ai-insights-box">
+    <div class="ai-icon">
+        <i class="fas fa-robot fa-2x text-white"></i>
+    </div>
+    <h4 class="text-center mb-3" style="color: #2d3748;">
+        <i class="fas fa-brain me-2"></i>AI Campaign Insights
+    </h4>
+    
+    {% if ai_insights %}
+        {% if ai_insights.success %}
+            <div class="insights-text text-center">
+                {{ ai_insights.analysis }}
+            </div>
+            
+            <!-- Show key metrics that influenced the analysis -->
+            {% if ai_insights.metrics %}
+            <div class="row mt-3 text-center">
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        <i class="fas fa-chart-line me-1"></i>
+                        Best Performer: 
+                        {% if ai_insights.metrics.best_campaign %}
+                            {{ ai_insights.metrics.best_campaign.name[:20] }}...
+                            ({{ "%.1f"|format(ai_insights.metrics.best_campaign.ctr) }}% CTR)
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Needs Attention: 
+                        {% if ai_insights.metrics.worst_campaign %}
+                            {{ ai_insights.metrics.worst_campaign.name[:20] }}...
+                            ({{ "%.1f"|format(ai_insights.metrics.worst_campaign.ctr) }}% CTR)
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            <div class="row mt-2 text-center">
+                <div class="col-md-4">
+                    <small class="text-muted">
+                        <i class="fas fa-percentage me-1"></i>
+                        Overall CTR: {{ "%.2f"|format(ai_insights.metrics.overall_ctr) }}%
+                    </small>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">
+                        <i class="fas fa-dollar-sign me-1"></i>
+                        Avg CPC: ${{ "%.2f"|format(ai_insights.metrics.overall_cpc) }}
+                    </small>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">
+                        <i class="fas fa-play-circle me-1"></i>
+                        Active: {{ ai_insights.metrics.active_campaigns }}/{{ ai_insights.metrics.total_campaigns }}
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="insights-text text-center">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                {{ ai_insights.error }}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="insights-text text-center">
+            <i class="fas fa-info-circle me-2"></i>
+            AI insights are not available. Please ensure Replicate API is configured properly.
+        </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<div class="row mt-4 mb-5">
+    <div class="col-12 text-center">
+        <button class="btn btn-primary me-2" onclick="window.print()">
+            <i class="fas fa-print me-1"></i>Print Report
+        </button>
+        <button class="btn btn-outline-secondary me-2" onclick="location.reload()">
+            <i class="fas fa-sync-alt me-1"></i>Refresh Data
+        </button>
+    </div>
+</div>
+
+<div class="mt-4 text-center">
+    <p class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        Report generated for Customer ID: <code>{{ customer_id }}</code> | 
+        Date Range: Last {{ date_range }} days
+    </p>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Simple page enhancement scripts
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add smooth scrolling to AI insights if they exist
+        const aiInsights = document.querySelector('.ai-insights-box');
+        if (aiInsights) {
+            // Add a subtle entrance animation
+            aiInsights.style.opacity = '0';
+            aiInsights.style.transform = 'translateY(20px)';
+            aiInsights.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            
+            setTimeout(() => {
+                aiInsights.style.opacity = '1';
+                aiInsights.style.transform = 'translateY(0)';
+            }, 500);
+        }
+        
+        // Add hover effects to metric cards
+        const metricCards = document.querySelectorAll('.metric-card');
+        metricCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-8px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(-5px) scale(1)';
+            });
+        });
+    });
+</script>

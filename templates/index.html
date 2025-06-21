@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card card-custom text-center">
+            <div class="card-body py-5">
+                <i class="fas fa-chart-bar fa-5x text-primary mb-4"></i>
+                <h1 class="card-title mb-4">Google Ads Spend Tracker</h1>
+                <p class="card-text lead mb-4">
+                    Easily track and analyze your Google Ads campaign spending with proper API authentication.
+                </p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="{{ url_for('setup') }}" class="btn btn-primary btn-lg btn-custom me-md-2">
+                        <i class="fas fa-cog me-2"></i>Setup API
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-lg btn-custom">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-5">
+            <div class="col-md-4">
+                <div class="card card-custom h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                        <h5>Secure Authentication</h5>
+                        <p class="text-muted">Uses official Google Ads API with proper OAuth2 authentication</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-custom h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                        <h5>Real-time Data</h5>
+                        <p class="text-muted">Fetch up-to-date campaign performance and spending data</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-custom h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-download fa-3x text-warning mb-3"></i>
+                        <h5>Easy Export</h5>
+                        <p class="text-muted">View and analyze your data in a clean, organized format</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Google Ads Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card card-custom">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Fetch Campaign Data</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('fetch_data') }}">
+                    <div class="mb-3">
+                        <label for="customer_id" class="form-label">Customer ID</label>
+                        <input type="text" class="form-control" id="customer_id" name="customer_id" 
+                               placeholder="123-456-7890" required>
+                        <div class="form-text">
+                            Enter the Google Ads Customer ID (found in your Google Ads account)
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="date_range" class="form-label">Date Range</label>
+                        <select class="form-select" id="date_range" name="date_range">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="60">Last 60 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success btn-custom">
+                        <i class="fas fa-download me-2"></i>Fetch Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Setup - Google Ads Tracker{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card card-custom">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-cog me-2"></i>Google Ads API Setup</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Setup Instructions:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Go to <a href="https://console.developers.google.com/" target="_blank">Google Cloud Console</a></li>
+                        <li>Create a new project or select an existing one</li>
+                        <li>Enable the Google Ads API</li>
+                        <li>Create OAuth2 credentials and get your tokens</li>
+                        <li>Fill in the form below with your credentials</li>
+                    </ol>
+                </div>
+
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="developer_token" class="form-label">Developer Token</label>
+                        <input type="text" class="form-control" id="developer_token" name="developer_token" required>
+                        <div class="form-text">Your Google Ads API developer token</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="client_id" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="client_id" name="client_id" required>
+                        <div class="form-text">OAuth2 Client ID from Google Cloud Console</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="client_secret" class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" id="client_secret" name="client_secret" required>
+                        <div class="form-text">OAuth2 Client Secret</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="refresh_token" class="form-label">Refresh Token</label>
+                        <input type="text" class="form-control" id="refresh_token" name="refresh_token" required>
+                        <div class="form-text">OAuth2 Refresh Token</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="login_customer_id" class="form-label">Login Customer ID</label>
+                        <input type="text" class="form-control" id="login_customer_id" name="login_customer_id">
+                        <div class="form-text">Manager account ID (optional, for MCC accounts)</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-custom">
+                        <i class="fas fa-save me-2"></i>Save Configuration
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
