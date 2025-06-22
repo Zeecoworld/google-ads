@@ -1,55 +1,48 @@
 {% extends "base.html" %}
 
-{% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card card-custom text-center">
-            <div class="card-body py-5">
-                <i class="fas fa-chart-bar fa-5x text-primary mb-4"></i>
-                <h1 class="card-title mb-4">Google Ads Spend Tracker</h1>
-                <p class="card-text lead mb-4">
-                    Easily track and analyze your Google Ads campaign spending with proper API authentication.
-                </p>
-                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                    <a href="{{ url_for('setup') }}" class="btn btn-primary btn-lg btn-custom me-md-2">
-                        <i class="fas fa-cog me-2"></i>Setup API
-                    </a>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-lg btn-custom">
-                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
-                    </a>
-                </div>
-            </div>
-        </div>
+{% block title %}Home - Google Ads API Integration{% endblock %}
 
-        <div class="row mt-5">
-            <div class="col-md-4">
-                <div class="card card-custom h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
-                        <h5>Secure Authentication</h5>
-                        <p class="text-muted">Uses official Google Ads API with proper OAuth2 authentication</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-custom h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-                        <h5>Real-time Data</h5>
-                        <p class="text-muted">Fetch up-to-date campaign performance and spending data</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card card-custom h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-download fa-3x text-warning mb-3"></i>
-                        <h5>Easy Export</h5>
-                        <p class="text-muted">View and analyze your data in a clean, organized format</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block header %}Google Ads API Integration{% endblock %}
+
+{% block content %}
+<div style="text-align: center; padding: 40px 0;">
+    <h2>Connect Your Google Ads Account</h2>
+    <p>This application allows users to connect their own Google Ads accounts using their own OAuth2 credentials.</p>
+    
+    <div style="margin: 40px 0;">
+        <h3>How it works:</h3>
+        <ol style="text-align: left; max-width: 600px; margin: 0 auto;">
+            <li><strong>You provide your Google OAuth2 credentials</strong> (Client ID & Secret from your Google Cloud Console)</li>
+            <li><strong>You enter your Google Ads Manager ID</strong> (Customer ID)</li>
+            <li><strong>Authenticate with Google</strong> using your credentials</li>
+            <li><strong>Grant permissions</strong> to access your Google Ads data</li>
+            <li><strong>Access your campaigns and performance data</strong></li>
+        </ol>
+    </div>
+    
+    <a href="/setup" class="btn btn-primary" style="font-size: 18px; padding: 15px 30px;">Get Started</a>
+</div>
+
+<div class="alert alert-info" style="margin-top: 60px;">
+    <h3>🔐 Your Credentials Stay With You</h3>
+    <p>This app doesn't store your OAuth credentials permanently. You provide your own Google Client ID and Secret, which are used only for your session. This ensures maximum security and control over your data.</p>
+</div>
+
+<div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #ddd;">
+    <h3>What you'll need:</h3>
+    <div style="text-align: left;">
+        <h4>1. Google Cloud Console OAuth2 Credentials:</h4>
+        <ul>
+            <li>Google Client ID</li>
+            <li>Google Client Secret</li>
+            <li>Set redirect URI to: <code>http://localhost:5000/callback</code></li>
+        </ul>
+        
+        <h4>2. Your Google Ads Information:</h4>
+        <ul>
+            <li>Your Google Ads Customer ID (Manager Account ID)</li>
+            <li>Make sure MCM (Multi Customer Manager) is active</li>
+        </ul>
     </div>
 </div>
 {% endblock %}

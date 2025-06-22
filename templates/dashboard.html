@@ -1,41 +1,118 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Google Ads Tracker{% endblock %}
+{% block title %}Dashboard - Google Ads API Integration{% endblock %}
+
+{% block header %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card card-custom">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>Fetch Campaign Data</h4>
-            </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('fetch_data') }}">
-                    <div class="mb-3">
-                        <label for="customer_id" class="form-label">Customer ID</label>
-                        <input type="text" class="form-control" id="customer_id" name="customer_id" 
-                               placeholder="123-456-7890" required>
-                        <div class="form-text">
-                            Enter the Google Ads Customer ID (found in your Google Ads account)
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="date_range" class="form-label">Date Range</label>
-                        <select class="form-select" id="date_range" name="date_range">
-                            <option value="7">Last 7 days</option>
-                            <option value="30" selected>Last 30 days</option>
-                            <option value="60">Last 60 days</option>
-                            <option value="90">Last 90 days</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success btn-custom">
-                        <i class="fas fa-download me-2"></i>Fetch Data
-                    </button>
-                </form>
-            </div>
-        </div>
+<div class="user-info">
+    <h3>✅ Connected: {{ user_info.name }}</h3>
+    <p><strong>Email:</strong> {{ user_info.email }}</p>
+    <p><strong>Google ID:</strong> {{ user_info.id }}</p>
+    {% if customer_id %}
+    <p><strong>Default Customer ID:</strong> {{ customer_id }}</p>
+    {% endif %}
+</div>
+
+<div style="text-align: right; margin: 20px 0;">
+    <a href="/logout" class="btn btn-danger">Logout & Clear Session</a>
+</div>
+
+<div class="api-section">
+    <h3>🏢 Your Google Ads Accounts</h3>
+    <p>Fetch all Google Ads accounts you have access to:</p>
+    <button onclick="fetchData('/accounts', 'accounts-loading', 'accounts-result')" class="btn btn-primary">
+        Get My Accounts
+    </button>
+    <div id="accounts-loading" class="loading">Loading accounts...</div>
+    <div id="accounts-result"></div>
+</div>
+
+<div class="api-section">
+    <h3>📊 Campaign Data</h3>
+    <p>Fetch campaigns for a specific Customer ID:</p>
+    <div style="margin: 15px 0;">
+        <input type="text" id="customer-id" placeholder="Enter Customer ID" 
+               value="{{ customer_id or '' }}" 
+               style="padding: 10px; margin: 5px; width: 200px;">
+        <button onclick="fetchCampaigns()" class="btn btn-primary">Get Campaigns</button>
     </div>
+    <div id="campaigns-loading" class="loading">Loading campaigns...</div>
+    <div id="campaigns-result"></div>
+</div>
+
+<div class="api-section">
+    <h3>📈 Campaign Performance</h3>
+    <p>Get detailed performance data for a specific campaign:</p>
+    <div style="margin: 15px 0;">
+        <input type="text" id="perf-customer-id" placeholder="Customer ID" 
+               value="{{ customer_id or '' }}" 
+               style="padding: 10px; margin: 5px; width: 150px;">
+        <input type="text" id="campaign-id" placeholder="Campaign ID" 
+               style="padding: 10px; margin: 5px; width: 150px;">
+        <button onclick="fetchPerformance()" class="btn btn-primary">Get Performance Data</button>
+    </div>
+    <div id="performance-loading" class="loading">Loading performance data...</div>
+    <div id="performance-result"></div>
+</div>
+
+<div class="alert alert-info">
+    <h4>💡 Tips:</h4>
+    <ul>
+        <li>First, get your accounts to find the correct Customer IDs</li>
+        <li>Use the Customer ID (without dashes) when fetching campaigns</li>
+        <li>Campaign IDs are found in the campaign data results</li>
+        <li>All cost data is in micros (divide by 1,000,000 for actual cost)</li>
+    </ul>
+</div>
+
+<script>
+function fetchCampaigns() {
+    const customerId = document.getElementById('customer-id').value;
+    if (!customerId) {
+        alert('Please enter a Customer ID');
+        return;
+    }
+    fetchData(`/campaigns?customer_id=${customerId}`, 'campaigns-loading', 'campaigns-result');
+}
+
+function fetchPerformance() {
+    const customerId = document.getElementById('perf-customer-id').value;
+    const campaignId = document.getElementById('campaign-id').value;
+    if (!customerId || !campaignId) {
+        alert('Please enter both Customer ID and Campaign ID');
+        return;
+    }
+    fetchData(`/campaign-performance?customer_id=${customerId}&campaign_id=${campaignId}`, 'performance-loading', 'performance-result');
+}
+</script>
+{% endblock %}
+
+<!-- templates/error.html -->
+{% extends "base.html" %}
+
+{% block title %}Error - Google Ads API Integration{% endblock %}
+
+{% block header %}❌ Authentication Error{% endblock %}
+
+{% block content %}
+<div class="alert alert-error">
+    <h3>Something went wrong</h3>
+    <p>{{ error }}</p>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="/setup" class="btn btn-primary">Try Again</a>
+    <a href="/" class="btn btn-secondary">← Back to Home</a>
+</div>
+
+<div class="alert alert-info">
+    <h4>Common Issues:</h4>
+    <ul>
+        <li><strong>Invalid redirect URI:</strong> Make sure your Google Cloud Console redirect URI matches exactly: <code>http://localhost:5000/callback</code></li>
+        <li><strong>Invalid client credentials:</strong> Double-check your Client ID and Client Secret</li>
+        <li><strong>Insufficient permissions:</strong> Make sure your Google account has access to Google Ads</li>
+        <li><strong>API not enabled:</strong> Enable Google Ads API in your Google Cloud Console</li>
+    </ul>
 </div>
 {% endblock %}

@@ -1,64 +1,69 @@
 {% extends "base.html" %}
 
-{% block title %}Setup - Google Ads Tracker{% endblock %}
+{% block title %}Setup - Google Ads API Integration{% endblock %}
+
+{% block header %}Setup Your Credentials{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card card-custom">
-            <div class="card-header bg-primary text-white">
-                <h4 class="mb-0"><i class="fas fa-cog me-2"></i>Google Ads API Setup</h4>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Setup Instructions:</strong>
-                    <ol class="mb-0 mt-2">
-                        <li>Go to <a href="https://console.developers.google.com/" target="_blank">Google Cloud Console</a></li>
-                        <li>Create a new project or select an existing one</li>
-                        <li>Enable the Google Ads API</li>
-                        <li>Create OAuth2 credentials and get your tokens</li>
-                        <li>Fill in the form below with your credentials</li>
-                    </ol>
-                </div>
+{% if error %}
+<div class="alert alert-error">
+    {{ error }}
+</div>
+{% endif %}
 
-                <form method="POST">
-                    <div class="mb-3">
-                        <label for="developer_token" class="form-label">Developer Token</label>
-                        <input type="text" class="form-control" id="developer_token" name="developer_token" required>
-                        <div class="form-text">Your Google Ads API developer token</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="client_id" class="form-label">Client ID</label>
-                        <input type="text" class="form-control" id="client_id" name="client_id" required>
-                        <div class="form-text">OAuth2 Client ID from Google Cloud Console</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="client_secret" class="form-label">Client Secret</label>
-                        <input type="password" class="form-control" id="client_secret" name="client_secret" required>
-                        <div class="form-text">OAuth2 Client Secret</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="refresh_token" class="form-label">Refresh Token</label>
-                        <input type="text" class="form-control" id="refresh_token" name="refresh_token" required>
-                        <div class="form-text">OAuth2 Refresh Token</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="login_customer_id" class="form-label">Login Customer ID</label>
-                        <input type="text" class="form-control" id="login_customer_id" name="login_customer_id">
-                        <div class="form-text">Manager account ID (optional, for MCC accounts)</div>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary btn-custom">
-                        <i class="fas fa-save me-2"></i>Save Configuration
-                    </button>
-                </form>
-            </div>
-        </div>
+<div class="step-indicator">
+    <h3>📋 Step 1: Enter Your Google OAuth2 Credentials</h3>
+    <p>Enter your Google Cloud Console OAuth2 credentials below. These will be used only for your session.</p>
+</div>
+
+<form method="POST" class="credentials-form">
+    <div class="form-group">
+        <label for="client_id">Google Client ID *</label>
+        <input type="text" id="client_id" name="client_id" required 
+               placeholder="123456789-abcdefghijklmnop.apps.googleusercontent.com">
+        <div class="help-text">Get this from Google Cloud Console → APIs & Credentials → OAuth 2.0 Client IDs</div>
     </div>
+    
+    <div class="form-group">
+        <label for="client_secret">Google Client Secret *</label>
+        <input type="password" id="client_secret" name="client_secret" required 
+               placeholder="Your Google Client Secret">
+        <div class="help-text">The secret key paired with your Client ID</div>
+    </div>
+    
+    <div class="form-group">
+        <label for="customer_id">Google Ads Customer ID (Optional)</label>
+        <input type="text" id="customer_id" name="customer_id" 
+               placeholder="1234567890">
+        <div class="help-text">Your Google Ads Manager Account ID (you can also specify this later)</div>
+    </div>
+    
+    <div class="form-group">
+        <label for="redirect_uri">Redirect URI</label>
+        <input type="url" id="redirect_uri" name="redirect_uri" 
+               value="http://localhost:5000/callback" readonly hidden>
+        <div class="help-text">This must match the redirect URI in your Google Cloud Console</div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary" style="font-size: 18px; padding: 15px 30px;">
+        Continue to Google Login
+    </button>
+</form>
+
+<div class="alert alert-info" style="margin-top: 30px;">
+    <h4>🔧 Need Help Setting Up Google OAuth2?</h4>
+    <ol>
+        <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+        <li>Create a new project or select existing one</li>
+        <li>Enable Google Ads API</li>
+        <li>Go to APIs & Credentials → Create Credentials → OAuth 2.0 Client ID</li>
+        <li>Set Application Type to "Web Application"</li>
+        <li>Add <code>http://localhost:5000/callback</code> to Authorized Redirect URIs</li>
+        <li>Copy the Client ID and Client Secret</li>
+    </ol>
+</div>
+
+<div style="text-align: center; margin-top: 30px;">
+    <a href="/" class="btn btn-secondary">← Back to Home</a>
 </div>
 {% endblock %}
