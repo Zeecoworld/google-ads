@@ -164,7 +164,8 @@ def setup():
         
         authorization_url, state = flow.authorization_url(
             access_type='offline',
-            include_granted_scopes='true'
+            include_granted_scopes='true',
+            prompt='consent'  # Force consent screen to ensure refresh token
         )
         
         session['state'] = state
@@ -194,19 +195,23 @@ def callback():
         # Exchange authorization code for tokens
         flow.fetch_token(authorization_response=request.url)
         
-        # Store refresh token - check if it exists
+        # Store tokens - handle both access and refresh tokens
         if flow.credentials.refresh_token:
             session['refresh_token'] = flow.credentials.refresh_token
+            session['access_token'] = flow.credentials.token
+            session['authenticated'] = True
+            flash('Successfully authenticated with Google Ads!', 'success')
+            return redirect(url_for('dashboard'))
         else:
-            # If no refresh token, this might be a re-authorization
-            # You may need to handle this case differently
-            flash('No refresh token received. You may need to revoke access and re-authorize.', 'warning')
-            return redirect(url_for('setup'))
-        
-        session['authenticated'] = True
-        
-        flash('Successfully authenticated with Google Ads!', 'success')
-        return redirect(url_for('dashboard'))
+            # Try to use access token directly if no refresh token
+            if flow.credentials.token:
+                session['access_token'] = flow.credentials.token
+                session['authenticated'] = True
+                flash('Authenticated successfully, but no refresh token received. You may need to re-authenticate when the token expires.', 'warning')
+                return redirect(url_for('dashboard'))
+            else:
+                flash('No tokens received. Please try again or revoke access and re-authorize.', 'error')
+                return redirect(url_for('setup'))
         
     except Exception as e:
         flash(f'Authentication failed: {str(e)}', 'error')
@@ -219,11 +224,16 @@ def dashboard():
         return redirect(url_for('setup'))
     
     # Check if we have all required session data
-    required_fields = ['developer_token', 'client_id', 'client_secret', 'refresh_token', 'customer_id']
+    required_fields = ['developer_token', 'client_id', 'client_secret', 'customer_id']
     missing_fields = [field for field in required_fields if not session.get(field)]
     
     if missing_fields:
         flash(f'Missing required credentials: {", ".join(missing_fields)}', 'error')
+        return redirect(url_for('setup'))
+    
+    # Check for tokens
+    if not session.get('refresh_token') and not session.get('access_token'):
+        flash('No authentication tokens found. Please authenticate again.', 'error')
         return redirect(url_for('setup'))
     
     # Initialize Google Ads manager
@@ -231,8 +241,9 @@ def dashboard():
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
-        session['refresh_token'],
-        session['customer_id']
+        session.get('refresh_token'),
+        session['customer_id'],
+        session.get('access_token')
     )
     
     if not ads_manager.initialize_client():
@@ -251,8 +262,9 @@ def campaign_detail(campaign_id):
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
-        session['refresh_token'],
-        session['customer_id']
+        session.get('refresh_token'),
+        session['customer_id'],
+        session.get('access_token')
     )
     
     if not ads_manager.initialize_client():
@@ -271,8 +283,9 @@ def api_campaigns():
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
-        session['refresh_token'],
-        session['customer_id']
+        session.get('refresh_token'),
+        session['customer_id'],
+        session.get('access_token')
     )
     
     if not ads_manager.initialize_client():
