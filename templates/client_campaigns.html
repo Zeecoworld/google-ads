@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Campaigns for {{ client_info.name if client_info else 'Client ' + client_id }}</h2>
+    
+    {% if campaigns %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Campaign Name</th>
+                        <th>Status</th>
+                        <th>Type</th>
+                        <th>Impressions</th>
+                        <th>Clicks</th>
+                        <th>Cost</th>
+                        <th>CTR</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for campaign in campaigns %}
+                    <tr>
+                        <td>{{ campaign.name }}</td>
+                        <td>{{ campaign.status }}</td>
+                        <td>{{ campaign.type }}</td>
+                        <td>{{ campaign.impressions }}</td>
+                        <td>{{ campaign.clicks }}</td>
+                        <td>${{ "%.2f"|format(campaign.cost) if campaign.cost != 'N/A' else 'N/A' }}</td>
+                        <td>{{ campaign.ctr }}% if campaign.ctr != 'N/A' else 'N/A' }}</td>
+                        <td>
+                            <a href="{{ url_for('campaign_detail', campaign_id=campaign.id, client_id=client_id) }}" class="btn btn-sm btn-primary">View Details</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No campaigns found for this client account.</p>
+    {% endif %}
+    
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+</div>
+{% endblock %}
