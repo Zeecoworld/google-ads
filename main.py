@@ -31,22 +31,20 @@ class GoogleAdsManager:
         self.client_secret = client_secret
         self.refresh_token = refresh_token
         self.access_token = access_token
-        self.customer_id = customer_id
+        self.customer_id = customer_id  # This should be the MANAGER account ID
         self.client = None
         
     def initialize_client(self):
         """Initialize Google Ads client with credentials"""
         try:
-            # Fixed credentials dictionary with all required fields
+            # Credentials dictionary - DO NOT include login_customer_id here
             credentials = {
                 "developer_token": self.developer_token,
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "refresh_token": self.refresh_token,
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "use_proto_plus": True,
-                # Add login_customer_id for manager accounts
-                "login_customer_id": self.customer_id
+                "use_proto_plus": True
             }
             
             # Add access token if available
@@ -73,7 +71,7 @@ class GoogleAdsManager:
                 WHERE customer.id = {}
             """.format(self.customer_id)
             
-            # For manager accounts, use login_customer_id
+            # For checking manager status, query the manager account directly
             response = ga_service.search(
                 customer_id=self.customer_id, 
                 query=query
@@ -105,7 +103,7 @@ class GoogleAdsManager:
                 WHERE customer_client.level <= 1
             """
             
-            # For manager accounts, the customer_id is already set as login_customer_id
+            # Query the manager account to get its clients
             response = ga_service.search(customer_id=self.customer_id, query=query)
             clients = []
             
@@ -129,25 +127,14 @@ class GoogleAdsManager:
         if not self.client:
             return []
         
-        # Use the provided client customer ID or the main customer ID
-        target_customer_id = client_customer_id or self.customer_id
-        
         try:
             ga_service = self.client.get_service("GoogleAdsService")
             
-            # Check if this is a manager account trying to get metrics
-            if not client_customer_id and self.is_manager_account():
-                # For manager accounts, get campaigns without metrics
-                query = """
-                    SELECT
-                        campaign.id,
-                        campaign.name,
-                        campaign.status,
-                        campaign.advertising_channel_type
-                    FROM campaign
-                """
-            else:
-                # For client accounts, get campaigns with metrics
+            if client_customer_id:
+                # CRITICAL FIX: When querying a CLIENT account through a MANAGER account,
+                # you need to set login_customer_id in the search request
+                target_customer_id = client_customer_id
+                
                 query = """
                     SELECT
                         campaign.id,
@@ -161,11 +148,45 @@ class GoogleAdsManager:
                     FROM campaign
                     WHERE segments.date DURING LAST_30_DAYS
                 """
+                
+                # This is the key fix: use login_customer_id parameter
+                response = ga_service.search(
+                    customer_id=str(target_customer_id),
+                    query=query,
+                    login_customer_id=str(self.customer_id)  # Manager account ID
+                )
+                
+            else:
+                # Direct query to manager account (if it's not a pure manager account)
+                target_customer_id = self.customer_id
+                
+                if self.is_manager_account():
+                    # Pure manager accounts typically don't have campaigns
+                    query = """
+                        SELECT
+                            campaign.id,
+                            campaign.name,
+                            campaign.status,
+                            campaign.advertising_channel_type
+                        FROM campaign
+                    """
+                else:
+                    query = """
+                        SELECT
+                            campaign.id,
+                            campaign.name,
+                            campaign.status,
+                            campaign.advertising_channel_type,
+                            metrics.impressions,
+                            metrics.clicks,
+                            metrics.cost_micros,
+                            metrics.ctr
+                        FROM campaign
+                        WHERE segments.date DURING LAST_30_DAYS
+                    """
+                
+                response = ga_service.search(customer_id=str(target_customer_id), query=query)
             
-            # IMPORTANT: When querying client accounts through manager,
-            # the target_customer_id is the client ID, but login_customer_id 
-            # (set in credentials) remains the manager ID
-            response = ga_service.search(customer_id=str(target_customer_id), query=query)
             campaigns = []
             
             for row in response:
@@ -177,7 +198,7 @@ class GoogleAdsManager:
                     'customer_id': target_customer_id
                 }
                 
-                # Add metrics if available (not for manager accounts)
+                # Add metrics if available
                 if hasattr(row, 'metrics'):
                     campaign.update({
                         'impressions': row.metrics.impressions,
@@ -186,7 +207,6 @@ class GoogleAdsManager:
                         'ctr': round(row.metrics.ctr * 100, 2)
                     })
                 else:
-                    # Default values for manager accounts
                     campaign.update({
                         'impressions': 'N/A',
                         'clicks': 'N/A',
@@ -206,24 +226,13 @@ class GoogleAdsManager:
         if not self.client:
             return []
         
-        # Use the provided client customer ID or the main customer ID
-        target_customer_id = client_customer_id or self.customer_id
-        
         try:
             ga_service = self.client.get_service("GoogleAdsService")
             
-            # Check if this is a manager account
-            if not client_customer_id and self.is_manager_account():
-                query = f"""
-                    SELECT
-                        ad_group.id,
-                        ad_group.name,
-                        ad_group.status,
-                        ad_group.campaign
-                    FROM ad_group
-                    WHERE campaign.id = {campaign_id}
-                """
-            else:
+            if client_customer_id:
+                # Query client account through manager
+                target_customer_id = client_customer_id
+                
                 query = f"""
                     SELECT
                         ad_group.id,
@@ -237,9 +246,45 @@ class GoogleAdsManager:
                     WHERE campaign.id = {campaign_id}
                     AND segments.date DURING LAST_30_DAYS
                 """
+                
+                # Use login_customer_id for manager access
+                response = ga_service.search(
+                    customer_id=str(target_customer_id),
+                    query=query,
+                    login_customer_id=str(self.customer_id)  # Manager account ID
+                )
+                
+            else:
+                # Direct query to the account
+                target_customer_id = self.customer_id
+                
+                if self.is_manager_account():
+                    query = f"""
+                        SELECT
+                            ad_group.id,
+                            ad_group.name,
+                            ad_group.status,
+                            ad_group.campaign
+                        FROM ad_group
+                        WHERE campaign.id = {campaign_id}
+                    """
+                else:
+                    query = f"""
+                        SELECT
+                            ad_group.id,
+                            ad_group.name,
+                            ad_group.status,
+                            ad_group.campaign,
+                            metrics.impressions,
+                            metrics.clicks,
+                            metrics.cost_micros
+                        FROM ad_group
+                        WHERE campaign.id = {campaign_id}
+                        AND segments.date DURING LAST_30_DAYS
+                    """
+                
+                response = ga_service.search(customer_id=str(target_customer_id), query=query)
             
-            # Same pattern: target_customer_id for the query, login_customer_id set in credentials
-            response = ga_service.search(customer_id=str(target_customer_id), query=query)
             ad_groups = []
             
             for row in response:
