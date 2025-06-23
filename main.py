@@ -280,3 +280,9 @@ def api_campaigns():
     
     campaigns = ads_manager.get_campaigns()
     return jsonify(campaigns)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out successfully', 'success')
+    return redirect(url_for('index'))
