@@ -31,13 +31,13 @@ class GoogleAdsManager:
         self.client_secret = client_secret
         self.refresh_token = refresh_token
         self.access_token = access_token
-        self.customer_id = customer_id  # This should be the MANAGER account ID
+        self.manager_customer_id = customer_id  # This should be the MANAGER account ID
         self.client = None
         
-    def initialize_client(self):
+    def initialize_client(self, login_customer_id=None):
         """Initialize Google Ads client with credentials"""
         try:
-            # Credentials dictionary - DO NOT include login_customer_id here
+            # Credentials dictionary
             credentials = {
                 "developer_token": self.developer_token,
                 "client_id": self.client_id,
@@ -50,44 +50,55 @@ class GoogleAdsManager:
             # Add access token if available
             if self.access_token:
                 credentials["token"] = self.access_token
-                
+            
+            # Add login_customer_id if provided (for manager accounts to specify the account to operate on)
+            # This is crucial for cross-account access
+            if login_customer_id:
+                credentials["login_customer_id"] = str(login_customer_id)
+            elif self.manager_customer_id:
+                credentials["login_customer_id"] = str(self.manager_customer_id) # Default to manager ID
+            
             self.client = GoogleAdsClient.load_from_dict(credentials)
             return True
         except Exception as e:
             print(f"Error initializing client: {e}")
             return False
     
-    def is_manager_account(self):
-        """Check if the customer ID is a manager account"""
+    def is_manager_account(self, customer_id_to_check=None):
+        """Check if the provided customer ID (or the manager's ID) is a manager account"""
         if not self.client:
             return False
             
+        target_customer_id = customer_id_to_check if customer_id_to_check else self.manager_customer_id
+
         try:
             ga_service = self.client.get_service("GoogleAdsService")
-            query = """
+            query = f"""
                 SELECT
                     customer.manager
                 FROM customer
-                WHERE customer.id = {}
-            """.format(self.customer_id)
+                WHERE customer.id = {target_customer_id}
+            """
             
-            # For checking manager status, query the manager account directly
             response = ga_service.search(
-                customer_id=self.customer_id, 
+                customer_id=str(target_customer_id),  # Query the specific customer ID
                 query=query
             )
             for row in response:
                 return row.customer.manager
             return False
         except Exception as e:
-            print(f"Error checking manager status: {e}")
+            print(f"Error checking manager status for {target_customer_id}: {e}")
             return False
-    
+            
     def get_client_accounts(self):
         """Get client accounts under a manager account"""
         if not self.client:
             return []
             
+        # Ensure the client is initialized with the manager_customer_id as login_customer_id
+        # This is handled during the initial setup in `dashboard` and `list_clients` routes
+        
         try:
             ga_service = self.client.get_service("GoogleAdsService")
             query = """
@@ -104,7 +115,7 @@ class GoogleAdsManager:
             """
             
             # Query the manager account to get its clients
-            response = ga_service.search(customer_id=self.customer_id, query=query)
+            response = ga_service.search(customer_id=str(self.manager_customer_id), query=query)
             clients = []
             
             for row in response:
@@ -122,68 +133,33 @@ class GoogleAdsManager:
             print(f"Request failed getting clients: {ex}")
             return []
     
-    def get_campaigns(self, client_customer_id=None):
-        """Retrieve all campaigns for the customer or specific client"""
+    def get_campaigns(self, customer_id_to_query=None):
+        """Retrieve all campaigns for the specified customer ID"""
         if not self.client:
             return []
         
+        target_customer_id = customer_id_to_query if customer_id_to_query else self.manager_customer_id
+        
         try:
-            if client_customer_id:
-                # FIXED: Create service with login_customer_id for manager account access
-                ga_service = self.client.get_service("GoogleAdsService", login_customer_id=str(self.customer_id))
-                target_customer_id = client_customer_id
-                
-                query = """
-                    SELECT
-                        campaign.id,
-                        campaign.name,
-                        campaign.status,
-                        campaign.advertising_channel_type,
-                        metrics.impressions,
-                        metrics.clicks,
-                        metrics.cost_micros,
-                        metrics.ctr
-                    FROM campaign
-                    WHERE segments.date DURING LAST_30_DAYS
-                """
-                
-                # Now use the service with login_customer_id already set
-                response = ga_service.search(
-                    customer_id=str(target_customer_id),
-                    query=query
-                )
-                
-            else:
-                # Direct query to manager account (if it's not a pure manager account)
-                ga_service = self.client.get_service("GoogleAdsService")
-                target_customer_id = self.customer_id
-                
-                if self.is_manager_account():
-                    # Pure manager accounts typically don't have campaigns
-                    query = """
-                        SELECT
-                            campaign.id,
-                            campaign.name,
-                            campaign.status,
-                            campaign.advertising_channel_type
-                        FROM campaign
-                    """
-                else:
-                    query = """
-                        SELECT
-                            campaign.id,
-                            campaign.name,
-                            campaign.status,
-                            campaign.advertising_channel_type,
-                            metrics.impressions,
-                            metrics.clicks,
-                            metrics.cost_micros,
-                            metrics.ctr
-                        FROM campaign
-                        WHERE segments.date DURING LAST_30_DAYS
-                    """
-                
-                response = ga_service.search(customer_id=str(target_customer_id), query=query)
+            ga_service = self.client.get_service("GoogleAdsService")
+            query = """
+                SELECT
+                    campaign.id,
+                    campaign.name,
+                    campaign.status,
+                    campaign.advertising_channel_type,
+                    metrics.impressions,
+                    metrics.clicks,
+                    metrics.cost_micros,
+                    metrics.ctr
+                FROM campaign
+                WHERE segments.date DURING LAST_30_DAYS
+            """
+            
+            response = ga_service.search(
+                customer_id=str(target_customer_id),
+                query=query
+            )
             
             campaigns = []
             
@@ -201,8 +177,8 @@ class GoogleAdsManager:
                     campaign.update({
                         'impressions': row.metrics.impressions,
                         'clicks': row.metrics.clicks,
-                        'cost': row.metrics.cost_micros / 1000000,
-                        'ctr': round(row.metrics.ctr * 100, 2)
+                        'cost': row.metrics.cost_micros / 1000000 if row.metrics.cost_micros else 0, # Divide by 1,000,000 for actual currency
+                        'ctr': round(row.metrics.ctr * 100, 2) if row.metrics.ctr else 0.00
                     })
                 else:
                     campaign.update({
@@ -216,71 +192,36 @@ class GoogleAdsManager:
             
             return campaigns
         except GoogleAdsException as ex:
-            print(f"Request failed: {ex}")
+            print(f"Request failed getting campaigns for customer ID {target_customer_id}: {ex}")
             return []
-    
-    def get_ad_groups(self, campaign_id, client_customer_id=None):
-        """Get ad groups for a specific campaign"""
+            
+    def get_ad_groups(self, campaign_id, customer_id_to_query=None):
+        """Get ad groups for a specific campaign and customer ID"""
         if not self.client:
             return []
+            
+        target_customer_id = customer_id_to_query if customer_id_to_query else self.manager_customer_id
         
         try:
-            if client_customer_id:
-                # FIXED: Create service with login_customer_id for manager account access
-                ga_service = self.client.get_service("GoogleAdsService", login_customer_id=str(self.customer_id))
-                target_customer_id = client_customer_id
-                
-                query = f"""
-                    SELECT
-                        ad_group.id,
-                        ad_group.name,
-                        ad_group.status,
-                        ad_group.campaign,
-                        metrics.impressions,
-                        metrics.clicks,
-                        metrics.cost_micros
-                    FROM ad_group
-                    WHERE campaign.id = {campaign_id}
-                    AND segments.date DURING LAST_30_DAYS
-                """
-                
-                # Use the service with login_customer_id already set
-                response = ga_service.search(
-                    customer_id=str(target_customer_id),
-                    query=query
-                )
-                
-            else:
-                # Direct query to the account
-                ga_service = self.client.get_service("GoogleAdsService")
-                target_customer_id = self.customer_id
-                
-                if self.is_manager_account():
-                    query = f"""
-                        SELECT
-                            ad_group.id,
-                            ad_group.name,
-                            ad_group.status,
-                            ad_group.campaign
-                        FROM ad_group
-                        WHERE campaign.id = {campaign_id}
-                    """
-                else:
-                    query = f"""
-                        SELECT
-                            ad_group.id,
-                            ad_group.name,
-                            ad_group.status,
-                            ad_group.campaign,
-                            metrics.impressions,
-                            metrics.clicks,
-                            metrics.cost_micros
-                        FROM ad_group
-                        WHERE campaign.id = {campaign_id}
-                        AND segments.date DURING LAST_30_DAYS
-                    """
-                
-                response = ga_service.search(customer_id=str(target_customer_id), query=query)
+            ga_service = self.client.get_service("GoogleAdsService")
+            query = f"""
+                SELECT
+                    ad_group.id,
+                    ad_group.name,
+                    ad_group.status,
+                    ad_group.campaign,
+                    metrics.impressions,
+                    metrics.clicks,
+                    metrics.cost_micros
+                FROM ad_group
+                WHERE campaign.id = {campaign_id}
+                AND segments.date DURING LAST_30_DAYS
+            """
+            
+            response = ga_service.search(
+                customer_id=str(target_customer_id),
+                query=query
+            )
             
             ad_groups = []
             
@@ -296,7 +237,7 @@ class GoogleAdsManager:
                     ad_group.update({
                         'impressions': row.metrics.impressions,
                         'clicks': row.metrics.clicks,
-                        'cost': row.metrics.cost_micros / 1000000
+                        'cost': row.metrics.cost_micros / 1000000 if row.metrics.cost_micros else 0
                     })
                 else:
                     ad_group.update({
@@ -309,10 +250,10 @@ class GoogleAdsManager:
             
             return ad_groups
         except GoogleAdsException as ex:
-            print(f"Request failed: {ex}")
+            print(f"Request failed getting ad groups for campaign {campaign_id} in customer ID {target_customer_id}: {ex}")
             return []
 
-# Routes
+# Routes (no changes needed here, as the logic will be handled by the updated GoogleAdsManager)
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -320,27 +261,22 @@ def index():
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
     if request.method == 'POST':
-        # Get developer token from environment variable
         developer_token = os.getenv('GOOGLE_DEVELOPER_TOKEN')
         
-        # Debug: Check if developer token is loaded
         if not developer_token:
             flash('Developer token not found in environment variables. Please check your .env file for GOOGLE_DEVELOPER_TOKEN.', 'error')
             return render_template('setup.html')
-        
-        # Store user credentials in session
+            
         session['developer_token'] = developer_token
         session['client_id'] = request.form['client_id']
         session['client_secret'] = request.form['client_secret']
         session['customer_id'] = request.form['customer_id']
         
-        # Debug: Print session data (remove in production)
         print(f"Session data stored:")
         print(f"Developer token present: {'Yes' if session.get('developer_token') else 'No'}")
         print(f"Client ID: {session.get('client_id', 'Not set')}")
-        print(f"Customer ID: {session.get('customer_id', 'Not set')}")
+        print(f"Customer ID (Manager ID): {session.get('customer_id', 'Not set')}")
         
-        # Create OAuth flow
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -358,23 +294,21 @@ def setup():
         authorization_url, state = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
-            prompt='consent'  # Force consent screen to ensure refresh token
+            prompt='consent'
         )
         
         session['state'] = state
         return redirect(authorization_url)
-    
+        
     return render_template('setup.html')
 
 @app.route('/callback')
 def callback():
     try:
-        # Debug: Check session data before processing
         print(f"Callback - Session data check:")
         print(f"Developer token present: {'Yes' if session.get('developer_token') else 'No'}")
         print(f"Client ID present: {'Yes' if session.get('client_id') else 'No'}")
         
-        # Create flow with stored credentials
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -390,10 +324,8 @@ def callback():
         )
         flow.redirect_uri = REDIRECT_URI
         
-        # Exchange authorization code for tokens
         flow.fetch_token(authorization_response=request.url)
         
-        # Store tokens - handle both access and refresh tokens
         if flow.credentials.refresh_token:
             session['refresh_token'] = flow.credentials.refresh_token
             session['access_token'] = flow.credentials.token
@@ -401,7 +333,6 @@ def callback():
             flash('Successfully authenticated with Google Ads!', 'success')
             return redirect(url_for('dashboard'))
         else:
-            # Try to use access token directly if no refresh token
             if flow.credentials.token:
                 session['access_token'] = flow.credentials.token
                 session['authenticated'] = True
@@ -410,7 +341,7 @@ def callback():
             else:
                 flash('No tokens received. Please try again or revoke access and re-authorize.', 'error')
                 return redirect(url_for('setup'))
-        
+            
     except Exception as e:
         print(f"Callback error: {e}")
         flash(f'Authentication failed: {str(e)}', 'error')
@@ -418,80 +349,90 @@ def callback():
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    # Debug: Check session data
     print(f"Dashboard - Session data check:")
     for key in ['authenticated', 'developer_token', 'client_id', 'client_secret', 'customer_id']:
         print(f"{key}: {'Present' if session.get(key) else 'Missing'}")
-    
+        
     if not session.get('authenticated'):
         flash('Please authenticate first', 'error')
         return redirect(url_for('setup'))
-    
-    # Check if we have all required session data
+        
     required_fields = ['developer_token', 'client_id', 'client_secret', 'customer_id']
     missing_fields = [field for field in required_fields if not session.get(field)]
     
     if missing_fields:
         flash(f'Missing required credentials: {", ".join(missing_fields)}. Please try the setup process again.', 'error')
         return redirect(url_for('setup'))
-    
-    # Check for tokens
+        
     if not session.get('refresh_token') and not session.get('access_token'):
         flash('No authentication tokens found. Please authenticate again.', 'error')
         return redirect(url_for('setup'))
-    
-    # Initialize Google Ads manager
+        
+    # Initialize Google Ads manager with the manager_customer_id
     ads_manager = GoogleAdsManager(
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
         session.get('refresh_token'),
-        session['customer_id'],
+        session['customer_id'], # This is the manager_customer_id
         session.get('access_token')
     )
     
     if not ads_manager.initialize_client():
         flash('Failed to initialize Google Ads client. Please check your credentials.', 'error')
         return redirect(url_for('setup'))
-    
+        
     campaigns = []
     selected_client_id = None
-    is_manager = ads_manager.is_manager_account()
-    
+    is_manager_account = ads_manager.is_manager_account(session['customer_id']) # Check if the authenticated customer_id is a manager
+
     # Handle POST request (form submission with client ID)
     if request.method == 'POST':
         selected_client_id = request.form.get('client_id')
         if selected_client_id:
             try:
-                campaigns = ads_manager.get_campaigns(client_customer_id=selected_client_id)
-                if campaigns:
-                    flash(f'Found {len(campaigns)} campaigns for client ID: {selected_client_id}', 'success')
+                # Re-initialize client with the selected client_id as login_customer_id for fetching campaigns
+                ads_manager_for_client = GoogleAdsManager(
+                    session['developer_token'],
+                    session['client_id'],
+                    session['client_secret'],
+                    session.get('refresh_token'),
+                    session['customer_id'], # Keep the manager ID here as well, it will be used as login_customer_id internally
+                    session.get('access_token')
+                )
+                if ads_manager_for_client.initialize_client(login_customer_id=selected_client_id): # Pass the client ID to initialize
+                    campaigns = ads_manager_for_client.get_campaigns(customer_id_to_query=selected_client_id)
+                    if campaigns:
+                        flash(f'Found {len(campaigns)} campaigns for client ID: {selected_client_id}', 'success')
+                    else:
+                        flash(f'No campaigns found for client ID: {selected_client_id}', 'warning')
                 else:
-                    flash(f'No campaigns found for client ID: {selected_client_id}', 'warning')
+                    flash(f'Failed to re-initialize Google Ads client for client ID {selected_client_id}.', 'error')
             except Exception as e:
                 flash(f'Error fetching campaigns for client ID {selected_client_id}: {str(e)}', 'error')
         else:
             flash('Please enter a valid client ID', 'error')
-    
-    # For GET request or if no campaigns found, try to get campaigns for the main account
-    elif not is_manager:
+            
+    # For GET request or if no campaigns found from POST, try to get campaigns for the main account (if it's not a pure manager)
+    # If it's a manager account, we don't query campaigns directly on it, only its clients.
+    elif not is_manager_account:
         try:
-            campaigns = ads_manager.get_campaigns()
+            campaigns = ads_manager.get_campaigns() # This will query the manager_customer_id directly
         except Exception as e:
-            flash(f'Error fetching campaigns: {str(e)}', 'error')
-    
+            flash(f'Error fetching campaigns for your primary account: {str(e)}', 'error')
+            
     return render_template('dashboard.html', 
-                         campaigns=campaigns, 
-                         is_manager=is_manager,
-                         selected_client_id=selected_client_id,
-                         manager_account_id=session['customer_id'])
+                            campaigns=campaigns, 
+                            is_manager=is_manager_account,
+                            selected_client_id=selected_client_id,
+                            manager_account_id=session['customer_id'])
 
 # Route to list client accounts under manager account
 @app.route('/clients')
 def list_clients():
     if not session.get('authenticated'):
         return redirect(url_for('setup'))
-    
+        
     ads_manager = GoogleAdsManager(
         session['developer_token'],
         session['client_id'],
@@ -501,10 +442,11 @@ def list_clients():
         session.get('access_token')
     )
     
-    if not ads_manager.initialize_client():
-        flash('Failed to initialize Google Ads client', 'error')
+    # Initialize the client with the manager ID as the login_customer_id for fetching client accounts
+    if not ads_manager.initialize_client(login_customer_id=session['customer_id']):
+        flash('Failed to initialize Google Ads client to fetch client accounts', 'error')
         return redirect(url_for('dashboard'))
-    
+        
     try:
         client_accounts = ads_manager.get_client_accounts()
         return render_template('clients.html', client_accounts=client_accounts)
@@ -517,63 +459,67 @@ def list_clients():
 def client_campaigns(client_id):
     if not session.get('authenticated'):
         return redirect(url_for('setup'))
-    
+        
     ads_manager = GoogleAdsManager(
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
         session.get('refresh_token'),
-        session['customer_id'],
+        session['customer_id'], # This is the manager ID
         session.get('access_token')
     )
     
-    if not ads_manager.initialize_client():
-        flash('Failed to initialize Google Ads client', 'error')
+    # Initialize the client with the selected client_id as login_customer_id
+    if not ads_manager.initialize_client(login_customer_id=client_id):
+        flash('Failed to initialize Google Ads client for selected client account', 'error')
         return redirect(url_for('dashboard'))
+        
+    campaigns = ads_manager.get_campaigns(customer_id_to_query=client_id)
     
-    campaigns = ads_manager.get_campaigns(client_customer_id=client_id)
-    
-    # Get client info
-    client_accounts = ads_manager.get_client_accounts()
+    # Get client info (you might need to fetch this separately or pass it from the clients list)
+    # For simplicity, we'll try to fetch it again, but in a real app you might pass it from /clients
+    client_accounts = ads_manager.get_client_accounts() # Fetch clients from the manager context
     client_info = next((c for c in client_accounts if str(c['id']) == client_id), None)
     
     return render_template('client_campaigns.html', 
-                         campaigns=campaigns, 
-                         client_info=client_info,
-                         client_id=client_id)
+                            campaigns=campaigns, 
+                            client_info=client_info,
+                            client_id=client_id)
 
 @app.route('/campaign/<int:campaign_id>')
 def campaign_detail(campaign_id):
     if not session.get('authenticated'):
         return redirect(url_for('setup'))
-    
-    # Get client_id from query parameter if provided (for manager accounts)
-    client_customer_id = request.args.get('client_id')
+        
+    client_customer_id = request.args.get('client_id') # Get client_id from query parameter if provided
     
     ads_manager = GoogleAdsManager(
         session['developer_token'],
         session['client_id'],
         session['client_secret'],
         session.get('refresh_token'),
-        session['customer_id'],
+        session['customer_id'], # This is the manager ID
         session.get('access_token')
     )
     
-    if not ads_manager.initialize_client():
-        flash('Failed to initialize Google Ads client', 'error')
+    # Initialize the client: if client_customer_id is present, use it as login_customer_id.
+    # Otherwise, the manager_customer_id (from session['customer_id']) will be the default login_customer_id.
+    if not ads_manager.initialize_client(login_customer_id=client_customer_id if client_customer_id else session['customer_id']):
+        flash('Failed to initialize Google Ads client for campaign detail', 'error')
         return redirect(url_for('dashboard'))
+        
+    ad_groups = ads_manager.get_ad_groups(campaign_id, customer_id_to_query=client_customer_id if client_customer_id else session['customer_id'])
     
-    ad_groups = ads_manager.get_ad_groups(campaign_id, client_customer_id)
     return render_template('campaign_detail.html', 
-                         ad_groups=ad_groups, 
-                         campaign_id=campaign_id,
-                         client_id=client_customer_id)
+                            ad_groups=ad_groups, 
+                            campaign_id=campaign_id,
+                            client_id=client_customer_id)
 
 @app.route('/api/campaigns')
 def api_campaigns():
     if not session.get('authenticated'):
         return jsonify({'error': 'Not authenticated'}), 401
-    
+        
     ads_manager = GoogleAdsManager(
         session['developer_token'],
         session['client_id'],
@@ -585,7 +531,7 @@ def api_campaigns():
     
     if not ads_manager.initialize_client():
         return jsonify({'error': 'Failed to initialize client'}), 500
-    
+        
     campaigns = ads_manager.get_campaigns()
     return jsonify(campaigns)
 
@@ -595,7 +541,6 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('index'))
 
-# Debug route to check environment variables (remove in production)
 @app.route('/debug/env')
 def debug_env():
     return {
