@@ -363,7 +363,7 @@ def callback():
         flash(f'Authentication failed: {str(e)}', 'error')
         return redirect(url_for('setup'))
 
-@app.route('/dashboard')
+@app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
     # Debug: Check session data
     print(f"Dashboard - Session data check:")
@@ -401,23 +401,63 @@ def dashboard():
         flash('Failed to initialize Google Ads client. Please check your credentials.', 'error')
         return redirect(url_for('setup'))
     
-    # Check if this is a manager account
-    is_manager = ads_manager.is_manager_account()
     campaigns = []
-    client_accounts = []
+    selected_client_id = None
+    is_manager = ads_manager.is_manager_account()
     
-    if is_manager:
-        # Get client accounts under the manager
-        client_accounts = ads_manager.get_client_accounts()
-        flash('This is a manager account. Select a client account below to view campaigns with metrics.', 'info')
-    else:
-        # Get campaigns for regular account
-        campaigns = ads_manager.get_campaigns()
+    # Handle POST request (form submission with client ID)
+    if request.method == 'POST':
+        selected_client_id = request.form.get('client_id')
+        if selected_client_id:
+            try:
+                campaigns = ads_manager.get_campaigns(client_customer_id=selected_client_id)
+                if campaigns:
+                    flash(f'Found {len(campaigns)} campaigns for client ID: {selected_client_id}', 'success')
+                else:
+                    flash(f'No campaigns found for client ID: {selected_client_id}', 'warning')
+            except Exception as e:
+                flash(f'Error fetching campaigns for client ID {selected_client_id}: {str(e)}', 'error')
+        else:
+            flash('Please enter a valid client ID', 'error')
+    
+    # For GET request or if no campaigns found, try to get campaigns for the main account
+    elif not is_manager:
+        try:
+            campaigns = ads_manager.get_campaigns()
+        except Exception as e:
+            flash(f'Error fetching campaigns: {str(e)}', 'error')
     
     return render_template('dashboard.html', 
                          campaigns=campaigns, 
-                         client_accounts=client_accounts,
-                         is_manager=is_manager)
+                         is_manager=is_manager,
+                         selected_client_id=selected_client_id,
+                         manager_account_id=session['customer_id'])
+
+# Route to list client accounts under manager account
+@app.route('/clients')
+def list_clients():
+    if not session.get('authenticated'):
+        return redirect(url_for('setup'))
+    
+    ads_manager = GoogleAdsManager(
+        session['developer_token'],
+        session['client_id'],
+        session['client_secret'],
+        session.get('refresh_token'),
+        session['customer_id'],
+        session.get('access_token')
+    )
+    
+    if not ads_manager.initialize_client():
+        flash('Failed to initialize Google Ads client', 'error')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        client_accounts = ads_manager.get_client_accounts()
+        return render_template('clients.html', client_accounts=client_accounts)
+    except Exception as e:
+        flash(f'Error fetching client accounts: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
 
 # New route for client account campaigns
 @app.route('/client/<client_id>/campaigns')
