@@ -128,11 +128,9 @@ class GoogleAdsManager:
             return []
         
         try:
-            ga_service = self.client.get_service("GoogleAdsService")
-            
             if client_customer_id:
-                # CRITICAL FIX: When querying a CLIENT account through a MANAGER account,
-                # you need to set login_customer_id in the search request
+                # FIXED: Create service with login_customer_id for manager account access
+                ga_service = self.client.get_service("GoogleAdsService", login_customer_id=str(self.customer_id))
                 target_customer_id = client_customer_id
                 
                 query = """
@@ -149,15 +147,15 @@ class GoogleAdsManager:
                     WHERE segments.date DURING LAST_30_DAYS
                 """
                 
-                # This is the key fix: use login_customer_id parameter
+                # Now use the service with login_customer_id already set
                 response = ga_service.search(
                     customer_id=str(target_customer_id),
-                    query=query,
-                    login_customer_id=str(self.customer_id)  # Manager account ID
+                    query=query
                 )
                 
             else:
                 # Direct query to manager account (if it's not a pure manager account)
+                ga_service = self.client.get_service("GoogleAdsService")
                 target_customer_id = self.customer_id
                 
                 if self.is_manager_account():
@@ -227,10 +225,9 @@ class GoogleAdsManager:
             return []
         
         try:
-            ga_service = self.client.get_service("GoogleAdsService")
-            
             if client_customer_id:
-                # Query client account through manager
+                # FIXED: Create service with login_customer_id for manager account access
+                ga_service = self.client.get_service("GoogleAdsService", login_customer_id=str(self.customer_id))
                 target_customer_id = client_customer_id
                 
                 query = f"""
@@ -247,15 +244,15 @@ class GoogleAdsManager:
                     AND segments.date DURING LAST_30_DAYS
                 """
                 
-                # Use login_customer_id for manager access
+                # Use the service with login_customer_id already set
                 response = ga_service.search(
                     customer_id=str(target_customer_id),
-                    query=query,
-                    login_customer_id=str(self.customer_id)  # Manager account ID
+                    query=query
                 )
                 
             else:
                 # Direct query to the account
+                ga_service = self.client.get_service("GoogleAdsService")
                 target_customer_id = self.customer_id
                 
                 if self.is_manager_account():
