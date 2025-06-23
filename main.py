@@ -25,11 +25,12 @@ SCOPES = [
 REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 class GoogleAdsManager:
-    def __init__(self, developer_token, client_id, client_secret, refresh_token, customer_id):
+    def __init__(self, developer_token, client_id, client_secret, refresh_token, customer_id, access_token=None):
         self.developer_token = developer_token
         self.client_id = client_id
         self.client_secret = client_secret
         self.refresh_token = refresh_token
+        self.access_token = access_token
         self.customer_id = customer_id
         self.client = None
         
@@ -42,9 +43,14 @@ class GoogleAdsManager:
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "refresh_token": self.refresh_token,
-                "token_uri": "https://oauth2.googleapis.com/token",  # Added missing token_uri
+                "token_uri": "https://oauth2.googleapis.com/token",
                 "use_proto_plus": True
             }
+            
+            # Add access token if available
+            if self.access_token:
+                credentials["token"] = self.access_token
+                
             self.client = GoogleAdsClient.load_from_dict(credentials)
             return True
         except Exception as e:
@@ -141,11 +147,25 @@ def index():
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
     if request.method == 'POST':
+        # Get developer token from environment variable
+        developer_token = os.getenv('GOOGLE_DEVELOPER_TOKEN')
+        
+        # Debug: Check if developer token is loaded
+        if not developer_token:
+            flash('Developer token not found in environment variables. Please check your .env file for GOOGLE_DEVELOPER_TOKEN.', 'error')
+            return render_template('setup.html')
+        
         # Store user credentials in session
-        session['developer_token'] = os.getenv('DEVELOPER_TOKEN')
+        session['developer_token'] = developer_token
         session['client_id'] = request.form['client_id']
         session['client_secret'] = request.form['client_secret']
         session['customer_id'] = request.form['customer_id']
+        
+        # Debug: Print session data (remove in production)
+        print(f"Session data stored:")
+        print(f"Developer token present: {'Yes' if session.get('developer_token') else 'No'}")
+        print(f"Client ID: {session.get('client_id', 'Not set')}")
+        print(f"Customer ID: {session.get('customer_id', 'Not set')}")
         
         # Create OAuth flow
         flow = Flow.from_client_config(
@@ -176,6 +196,11 @@ def setup():
 @app.route('/callback')
 def callback():
     try:
+        # Debug: Check session data before processing
+        print(f"Callback - Session data check:")
+        print(f"Developer token present: {'Yes' if session.get('developer_token') else 'No'}")
+        print(f"Client ID present: {'Yes' if session.get('client_id') else 'No'}")
+        
         # Create flow with stored credentials
         flow = Flow.from_client_config(
             {
@@ -214,11 +239,17 @@ def callback():
                 return redirect(url_for('setup'))
         
     except Exception as e:
+        print(f"Callback error: {e}")
         flash(f'Authentication failed: {str(e)}', 'error')
         return redirect(url_for('setup'))
 
 @app.route('/dashboard')
 def dashboard():
+    # Debug: Check session data
+    print(f"Dashboard - Session data check:")
+    for key in ['authenticated', 'developer_token', 'client_id', 'client_secret', 'customer_id']:
+        print(f"{key}: {'Present' if session.get(key) else 'Missing'}")
+    
     if not session.get('authenticated'):
         flash('Please authenticate first', 'error')
         return redirect(url_for('setup'))
@@ -228,7 +259,7 @@ def dashboard():
     missing_fields = [field for field in required_fields if not session.get(field)]
     
     if missing_fields:
-        flash(f'Missing required credentials: {", ".join(missing_fields)}', 'error')
+        flash(f'Missing required credentials: {", ".join(missing_fields)}. Please try the setup process again.', 'error')
         return redirect(url_for('setup'))
     
     # Check for tokens
@@ -247,7 +278,7 @@ def dashboard():
     )
     
     if not ads_manager.initialize_client():
-        flash('Failed to initialize Google Ads client', 'error')
+        flash('Failed to initialize Google Ads client. Please check your credentials.', 'error')
         return redirect(url_for('setup'))
     
     campaigns = ads_manager.get_campaigns()
@@ -299,3 +330,12 @@ def logout():
     session.clear()
     flash('Logged out successfully', 'success')
     return redirect(url_for('index'))
+
+# Debug route to check environment variables (remove in production)
+@app.route('/debug/env')
+def debug_env():
+    return {
+        'GOOGLE_DEVELOPER_TOKEN_SET': 'Yes' if os.getenv('GOOGLE_DEVELOPER_TOKEN') else 'No',
+        'SECRET_KEY_SET': 'Yes' if os.getenv('SECRET_KEY') else 'No',
+        'REDIRECT_URI_SET': 'Yes' if os.getenv('REDIRECT_URI') else 'No',
+    }
