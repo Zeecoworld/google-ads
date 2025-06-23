@@ -17,7 +17,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 
 # Configuration
-SCOPES = ['https://www.googleapis.com/auth/adwords']
+SCOPES = [
+    'https://www.googleapis.com/auth/adwords',
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/drive.metadata',
+    'https://www.googleapis.com/auth/drive.file',
+]
 REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 class GoogleAdsManager:
