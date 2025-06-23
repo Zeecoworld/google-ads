@@ -18,7 +18,7 @@ app.secret_key = os.getenv('SECRET_KEY')
 
 # Configuration
 SCOPES = ['https://www.googleapis.com/auth/adwords']
-REDIRECT_URI = 'http://localhost:5000/callback'
+REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 class GoogleAdsManager:
     def __init__(self, developer_token, client_id, client_secret, refresh_token, customer_id):
