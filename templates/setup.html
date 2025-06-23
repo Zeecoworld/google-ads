@@ -1,69 +1,248 @@
 {% extends "base.html" %}
 
-{% block title %}Setup - Google Ads API Integration{% endblock %}
+{% block title %}Setup - Google Ads Dashboard{% endblock %}
 
-{% block header %}Setup Your Credentials{% endblock %}
+{% block extra_css %}
+<style>
+    .form-floating {
+        margin-bottom: 1rem;
+    }
+    
+    .setup-card {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .credential-help {
+        background-color: #f8f9fa;
+        border-left: 4px solid var(--primary-color);
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    
+    .step {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin: 0 1rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-{% if error %}
-<div class="alert alert-error">
-    {{ error }}
-</div>
-{% endif %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="setup-card">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <i class="fas fa-cog fa-3x text-primary mb-3"></i>
+                <h2>Google Ads Setup</h2>
+                <p class="text-muted">Connect your Google Ads account to get started</p>
+            </div>
 
-<div class="step-indicator">
-    <h3>📋 Step 1: Enter Your Google OAuth2 Credentials</h3>
-    <p>Enter your Google Cloud Console OAuth2 credentials below. These will be used only for your session.</p>
-</div>
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step">1</div>
+                <div class="step" style="background-color: #dee2e6; color: #6c757d;">2</div>
+                <div class="step" style="background-color: #dee2e6; color: #6c757d;">3</div>
+            </div>
 
-<form method="POST" class="credentials-form">
-    <div class="form-group">
-        <label for="client_id">Google Client ID *</label>
-        <input type="text" id="client_id" name="client_id" required 
-               placeholder="123456789-abcdefghijklmnop.apps.googleusercontent.com">
-        <div class="help-text">Get this from Google Cloud Console → APIs & Credentials → OAuth 2.0 Client IDs</div>
-    </div>
-    
-    <div class="form-group">
-        <label for="client_secret">Google Client Secret *</label>
-        <input type="password" id="client_secret" name="client_secret" required 
-               placeholder="Your Google Client Secret">
-        <div class="help-text">The secret key paired with your Client ID</div>
-    </div>
-    
-    <div class="form-group">
-        <label for="customer_id">Google Ads Customer ID (Optional)</label>
-        <input type="text" id="customer_id" name="customer_id" 
-               placeholder="1234567890">
-        <div class="help-text">Your Google Ads Manager Account ID (you can also specify this later)</div>
-    </div>
-    
-    <div class="form-group">
-        <label for="redirect_uri">Redirect URI</label>
-        <input type="url" id="redirect_uri" name="redirect_uri" 
-               value="http://localhost:5000/callback" readonly hidden>
-        <div class="help-text">This must match the redirect URI in your Google Cloud Console</div>
-    </div>
-    
-    <button type="submit" class="btn btn-primary" style="font-size: 18px; padding: 15px 30px;">
-        Continue to Google Login
-    </button>
-</form>
+            <!-- Help Section -->
+            <div class="credential-help">
+                <h5><i class="fas fa-lightbulb text-warning"></i> How to Get Your Credentials</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Developer Token:</strong></p>
+                        <ul class="small">
+                            <li>Go to Google Ads Manager Account</li>
+                            <li>Navigate to Tools & Settings > API Center</li>
+                            <li>Apply for Developer Token</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>OAuth Credentials:</strong></p>
+                        <ul class="small">
+                            <li>Visit Google Cloud Console</li>
+                            <li>Create/Select Project</li>
+                            <li>Enable Google Ads API</li>
+                            <li>Create OAuth 2.0 credentials</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <p><strong>Customer ID:</strong> Find this in your Google Ads account (format: 123-456-7890, enter without dashes)</p>
+                    </div>
+                </div>
+            </div>
 
-<div class="alert alert-info" style="margin-top: 30px;">
-    <h4>🔧 Need Help Setting Up Google OAuth2?</h4>
-    <ol>
-        <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
-        <li>Create a new project or select existing one</li>
-        <li>Enable Google Ads API</li>
-        <li>Go to APIs & Credentials → Create Credentials → OAuth 2.0 Client ID</li>
-        <li>Set Application Type to "Web Application"</li>
-        <li>Add <code>http://localhost:5000/callback</code> to Authorized Redirect URIs</li>
-        <li>Copy the Client ID and Client Secret</li>
-    </ol>
-</div>
+            <!-- Setup Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-key"></i> Enter Your Credentials
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('setup') }}">
 
-<div style="text-align: center; margin-top: 30px;">
-    <a href="/" class="btn btn-secondary">← Back to Home</a>
+                        <div class="form-floating">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="client_id" 
+                                   name="client_id" 
+                                   placeholder="Client ID"
+                                   required>
+                            <label for="client_id">
+                                <i class="fas fa-id-card"></i> Client ID
+                            </label>
+                            <div class="form-text">
+                                OAuth 2.0 Client ID from Google Cloud Console
+                            </div>
+                        </div>
+
+                        <div class="form-floating">
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="client_secret" 
+                                   name="client_secret" 
+                                   placeholder="Client Secret"
+                                   required>
+                            <label for="client_secret">
+                                <i class="fas fa-lock"></i> Client Secret
+                            </label>
+                            <div class="form-text">
+                                OAuth 2.0 Client Secret from Google Cloud Console
+                            </div>
+                        </div>
+
+                        <div class="form-floating">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="customer_id" 
+                                   name="customer_id" 
+                                   placeholder="Customer ID"
+                                   pattern="[0-9]{10}"
+                                   title="Enter 10-digit Customer ID without dashes"
+                                   required>
+                            <label for="customer_id">
+                                <i class="fas fa-building"></i> Customer ID
+                            </label>
+                            <div class="form-text">
+                                Your Google Ads Customer ID (10 digits, no dashes)
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Next Step:</strong> After submitting this form, you'll be redirected to Google to authorize access to your Google Ads account.
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right"></i> Continue to Authorization
+                            </button>
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Home
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Security Notice -->
+            <div class="mt-4">
+                <div class="card border-success">
+                    <div class="card-body">
+                        <h6 class="card-title text-success">
+                            <i class="fas fa-shield-alt"></i> Security Notice
+                        </h6>
+                        <p class="card-text small text-muted mb-0">
+                            Your credentials are stored securely in your session and are not permanently saved. 
+                            The OAuth flow ensures secure access to your Google Ads data without storing sensitive information.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="mt-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-question-circle"></i> Common Issues
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion" id="troubleshootingAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingOne">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                        Invalid Developer Token
+                                    </button>
+                                </h2>
+                                <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                    <div class="accordion-body small">
+                                        Ensure your Developer Token is approved and active. Test accounts may have limited access.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingTwo">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                        OAuth Redirect URI Mismatch
+                                    </button>
+                                </h2>
+                                <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                    <div class="accordion-body small">
+                                        Make sure http://localhost:5000/callback is added to your OAuth client's authorized redirect URIs.
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingThree">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                        Customer ID Format
+                                    </button>
+                                </h2>
+                                <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                    <div class="accordion-body small">
+                                        Enter your Customer ID as 10 digits without dashes (e.g., 1234567890 instead of 123-456-7890).
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Form validation
+    document.getElementById('customer_id').addEventListener('input', function(e) {
+        // Remove any non-numeric characters
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        
+        // Limit to 10 digits
+        if (e.target.value.length > 10) {
+            e.target.value = e.target.value.slice(0, 10);
+        }
+    });
+</script>
 {% endblock %}

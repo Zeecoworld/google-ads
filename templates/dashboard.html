@@ -1,118 +1,348 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Google Ads API Integration{% endblock %}
+{% block title %}Dashboard - Google Ads Dashboard{% endblock %}
 
-{% block header %}Dashboard{% endblock %}
+{% block extra_css %}
+<style>
+    .campaign-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .campaign-card:hover {
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 15px rgba(66, 133, 244, 0.2) !important;
+    }
+    
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin: 0 auto 1rem;
+    }
+    
+    .impressions-icon { background-color: rgba(66, 133, 244, 0.1); color: var(--primary-color); }
+    .clicks-icon { background-color: rgba(52, 168, 83, 0.1); color: var(--secondary-color); }
+    .cost-icon { background-color: rgba(234, 67, 53, 0.1); color: var(--danger-color); }
+    .ctr-icon { background-color: rgba(251, 188, 4, 0.1); color: var(--warning-color); }
+    
+    .summary-stats {
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .loading-spinner {
+        display: none;
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .campaign-type-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="user-info">
-    <h3>✅ Connected: {{ user_info.name }}</h3>
-    <p><strong>Email:</strong> {{ user_info.email }}</p>
-    <p><strong>Google ID:</strong> {{ user_info.id }}</p>
-    {% if customer_id %}
-    <p><strong>Default Customer ID:</strong> {{ customer_id }}</p>
+<div class="row">
+    <!-- Page Header -->
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-chart-line text-primary"></i> Campaign Dashboard</h2>
+                <p class="text-muted mb-0">Overview of your Google Ads campaigns (Last 30 days)</p>
+            </div>
+            <div>
+                <button class="btn btn-outline-primary" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+                <span class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i> Loading...
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    {% if campaigns %}
+    <!-- Summary Statistics -->
+    <div class="col-12">
+        <div class="summary-stats">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-icon impressions-icon bg-white">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <div class="metric-value">
+                            {{ "{:,}".format(campaigns|sum(attribute='impressions')) }}
+                        </div>
+                        <div class="metric-label">Total Impressions</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-icon clicks-icon bg-white">
+                            <i class="fas fa-mouse-pointer"></i>
+                        </div>
+                        <div class="metric-value">
+                            {{ "{:,}".format(campaigns|sum(attribute='clicks')) }}
+                        </div>
+                        <div class="metric-label">Total Clicks</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-icon cost-icon bg-white">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="metric-value">
+                            ${{ "%.2f"|format(campaigns|sum(attribute='cost')) }}
+                        </div>
+                        <div class="metric-label">Total Cost</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-icon ctr-icon bg-white">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="metric-value">
+                            {% set total_clicks = campaigns|sum(attribute='clicks') %}
+                            {% set total_impressions = campaigns|sum(attribute='impressions') %}
+                            {% if total_impressions > 0 %}
+                                {{ "%.2f"|format((total_clicks / total_impressions) * 100) }}%
+                            {% else %}
+                                0.00%
+                            {% endif %}
+                        </div>
+                        <div class="metric-label">Average CTR</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Campaigns Table -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-bullseye"></i> Campaigns ({{ campaigns|length }})
+                </h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary" onclick="toggleView('table')">
+                        <i class="fas fa-table"></i> Table
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary active" onclick="toggleView('cards')">
+                        <i class="fas fa-th-large"></i> Cards
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Cards View -->
+                <div id="cards-view">
+                    <div class="row">
+                        {% for campaign in campaigns %}
+                        <div class="col-lg-6 col-xl-4 mb-4">
+                            <div class="card campaign-card h-100" onclick="viewCampaign({{ campaign.id }})">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                        <h6 class="card-title mb-0">{{ campaign.name }}</h6>
+                                        <span class="badge status-badge status-{{ campaign.status.lower() }}">
+                                            {{ campaign.status }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <span class="badge campaign-type-badge bg-light text-dark">
+                                            {{ campaign.type.replace('_', ' ').title() }}
+                                        </span>
+                                    </div>
+                                    
+                                    <div class="row text-center mt-3">
+                                        <div class="col-6">
+                                            <div class="small text-muted">Impressions</div>
+                                            <div class="fw-bold">{{ "{:,}".format(campaign.impressions) }}</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="small text-muted">Clicks</div>
+                                            <div class="fw-bold">{{ "{:,}".format(campaign.clicks) }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row text-center mt-2">
+                                        <div class="col-6">
+                                            <div class="small text-muted">Cost</div>
+                                            <div class="fw-bold text-danger">${{ "%.2f"|format(campaign.cost) }}</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="small text-muted">CTR</div>
+                                            <div class="fw-bold text-success">{{ campaign.ctr }}%</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    <small class="text-muted">
+                                        <i class="fas fa-arrow-right"></i> Click to view ad groups
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Table View -->
+                <div id="table-view" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Status</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Impressions</th>
+                                    <th class="text-end">Clicks</th>
+                                    <th class="text-end">Cost</th>
+                                    <th class="text-end">CTR</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for campaign in campaigns %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ campaign.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge status-badge status-{{ campaign.status.lower() }}">
+                                            {{ campaign.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge campaign-type-badge bg-light text-dark">
+                                            {{ campaign.type.replace('_', ' ').title() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">{{ "{:,}".format(campaign.impressions) }}</td>
+                                    <td class="text-end">{{ "{:,}".format(campaign.clicks) }}</td>
+                                    <td class="text-end text-danger">${{ "%.2f"|format(campaign.cost) }}</td>
+                                    <td class="text-end text-success">{{ campaign.ctr }}%</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewCampaign({{ campaign.id }})">
+                                            <i class="fas fa-eye"></i> View
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- No Campaigns Message -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-bullseye fa-4x text-muted mb-4"></i>
+                <h4>No Campaigns Found</h4>
+                <p class="text-muted mb-4">
+                    We couldn't find any campaigns in your Google Ads account for the last 30 days.
+                </p>
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Verify your Customer ID is correct
+                            </div>
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Ensure you have active campaigns
+                            </div>
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                Check your Google Ads account permissions
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Retry
+                </button>
+            </div>
+        </div>
+    </div>
     {% endif %}
 </div>
+{% endblock %}
 
-<div style="text-align: right; margin: 20px 0;">
-    <a href="/logout" class="btn btn-danger">Logout & Clear Session</a>
-</div>
-
-<div class="api-section">
-    <h3>🏢 Your Google Ads Accounts</h3>
-    <p>Fetch all Google Ads accounts you have access to:</p>
-    <button onclick="fetchData('/accounts', 'accounts-loading', 'accounts-result')" class="btn btn-primary">
-        Get My Accounts
-    </button>
-    <div id="accounts-loading" class="loading">Loading accounts...</div>
-    <div id="accounts-result"></div>
-</div>
-
-<div class="api-section">
-    <h3>📊 Campaign Data</h3>
-    <p>Fetch campaigns for a specific Customer ID:</p>
-    <div style="margin: 15px 0;">
-        <input type="text" id="customer-id" placeholder="Enter Customer ID" 
-               value="{{ customer_id or '' }}" 
-               style="padding: 10px; margin: 5px; width: 200px;">
-        <button onclick="fetchCampaigns()" class="btn btn-primary">Get Campaigns</button>
-    </div>
-    <div id="campaigns-loading" class="loading">Loading campaigns...</div>
-    <div id="campaigns-result"></div>
-</div>
-
-<div class="api-section">
-    <h3>📈 Campaign Performance</h3>
-    <p>Get detailed performance data for a specific campaign:</p>
-    <div style="margin: 15px 0;">
-        <input type="text" id="perf-customer-id" placeholder="Customer ID" 
-               value="{{ customer_id or '' }}" 
-               style="padding: 10px; margin: 5px; width: 150px;">
-        <input type="text" id="campaign-id" placeholder="Campaign ID" 
-               style="padding: 10px; margin: 5px; width: 150px;">
-        <button onclick="fetchPerformance()" class="btn btn-primary">Get Performance Data</button>
-    </div>
-    <div id="performance-loading" class="loading">Loading performance data...</div>
-    <div id="performance-result"></div>
-</div>
-
-<div class="alert alert-info">
-    <h4>💡 Tips:</h4>
-    <ul>
-        <li>First, get your accounts to find the correct Customer IDs</li>
-        <li>Use the Customer ID (without dashes) when fetching campaigns</li>
-        <li>Campaign IDs are found in the campaign data results</li>
-        <li>All cost data is in micros (divide by 1,000,000 for actual cost)</li>
-    </ul>
-</div>
-
+{% block extra_js %}
 <script>
-function fetchCampaigns() {
-    const customerId = document.getElementById('customer-id').value;
-    if (!customerId) {
-        alert('Please enter a Customer ID');
-        return;
+    function viewCampaign(campaignId) {
+        window.location.href = '/campaign/' + campaignId;
     }
-    fetchData(`/campaigns?customer_id=${customerId}`, 'campaigns-loading', 'campaigns-result');
-}
-
-function fetchPerformance() {
-    const customerId = document.getElementById('perf-customer-id').value;
-    const campaignId = document.getElementById('campaign-id').value;
-    if (!customerId || !campaignId) {
-        alert('Please enter both Customer ID and Campaign ID');
-        return;
+    
+    function refreshData() {
+        const loadingSpinner = document.querySelector('.loading-spinner');
+        const refreshBtn = document.querySelector('button[onclick="refreshData()"]');
+        
+        loadingSpinner.style.display = 'inline-block';
+        refreshBtn.disabled = true;
+        
+        // Refresh the page after a short delay to show loading state
+        setTimeout(() => {
+            window.location.reload();
+        }, 500);
     }
-    fetchData(`/campaign-performance?customer_id=${customerId}&campaign_id=${campaignId}`, 'performance-loading', 'performance-result');
-}
+    
+    function toggleView(viewType) {
+        const cardsView = document.getElementById('cards-view');
+        const tableView = document.getElementById('table-view');
+        const buttons = document.querySelectorAll('.btn-group button');
+        
+        // Remove active class from all buttons
+        buttons.forEach(btn => btn.classList.remove('active'));
+        
+        if (viewType === 'table') {
+            cardsView.style.display = 'none';
+            tableView.style.display = 'block';
+            buttons[0].classList.add('active');
+        } else {
+            cardsView.style.display = 'block';
+            tableView.style.display = 'none';
+            buttons[1].classList.add('active');
+        }
+    }
+    
+    // Auto-refresh every 5 minutes
+    setInterval(() => {
+        const lastRefresh = sessionStorage.getItem('lastRefresh');
+        const now = Date.now();
+        
+        if (!lastRefresh || (now - parseInt(lastRefresh)) > 300000) { // 5 minutes
+            sessionStorage.setItem('lastRefresh', now.toString());
+            refreshData();
+        }
+    }, 300000);
+    
+    // Set initial refresh timestamp
+    if (!sessionStorage.getItem('lastRefresh')) {
+        sessionStorage.setItem('lastRefresh', Date.now().toString());
+    }
 </script>
-{% endblock %}
-
-<!-- templates/error.html -->
-{% extends "base.html" %}
-
-{% block title %}Error - Google Ads API Integration{% endblock %}
-
-{% block header %}❌ Authentication Error{% endblock %}
-
-{% block content %}
-<div class="alert alert-error">
-    <h3>Something went wrong</h3>
-    <p>{{ error }}</p>
-</div>
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="/setup" class="btn btn-primary">Try Again</a>
-    <a href="/" class="btn btn-secondary">← Back to Home</a>
-</div>
-
-<div class="alert alert-info">
-    <h4>Common Issues:</h4>
-    <ul>
-        <li><strong>Invalid redirect URI:</strong> Make sure your Google Cloud Console redirect URI matches exactly: <code>http://localhost:5000/callback</code></li>
-        <li><strong>Invalid client credentials:</strong> Double-check your Client ID and Client Secret</li>
-        <li><strong>Insufficient permissions:</strong> Make sure your Google account has access to Google Ads</li>
-        <li><strong>API not enabled:</strong> Enable Google Ads API in your Google Cloud Console</li>
-    </ul>
-</div>
-{% endblock %}

@@ -1,48 +1,184 @@
 {% extends "base.html" %}
 
-{% block title %}Home - Google Ads API Integration{% endblock %}
-
-{% block header %}Google Ads API Integration{% endblock %}
+{% block title %}Home - Google Ads Dashboard{% endblock %}
 
 {% block content %}
-<div style="text-align: center; padding: 40px 0;">
-    <h2>Connect Your Google Ads Account</h2>
-    <p>This application allows users to connect their own Google Ads accounts using their own OAuth2 credentials.</p>
-    
-    <div style="margin: 40px 0;">
-        <h3>How it works:</h3>
-        <ol style="text-align: left; max-width: 600px; margin: 0 auto;">
-            <li><strong>You provide your Google OAuth2 credentials</strong> (Client ID & Secret from your Google Cloud Console)</li>
-            <li><strong>You enter your Google Ads Manager ID</strong> (Customer ID)</li>
-            <li><strong>Authenticate with Google</strong> using your credentials</li>
-            <li><strong>Grant permissions</strong> to access your Google Ads data</li>
-            <li><strong>Access your campaigns and performance data</strong></li>
-        </ol>
-    </div>
-    
-    <a href="/setup" class="btn btn-primary" style="font-size: 18px; padding: 15px 30px;">Get Started</a>
-</div>
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Hero Section -->
+        <div class="text-center mb-5">
+            <i class="fab fa-google fa-4x text-primary mb-3"></i>
+            <h1 class="display-4 mb-3">Google Ads Dashboard</h1>
+            <p class="lead text-muted">
+                Monitor and manage your Google Ads campaigns with comprehensive insights and analytics
+            </p>
+        </div>
 
-<div class="alert alert-info" style="margin-top: 60px;">
-    <h3>🔐 Your Credentials Stay With You</h3>
-    <p>This app doesn't store your OAuth credentials permanently. You provide your own Google Client ID and Secret, which are used only for your session. This ensures maximum security and control over your data.</p>
-</div>
+        <!-- Features Section -->
+        <div class="row mb-5">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Campaign Analytics</h5>
+                        <p class="card-text">
+                            Get detailed insights into your campaign performance with real-time metrics and historical data.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-bullseye fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Ad Group Management</h5>
+                        <p class="card-text">
+                            Monitor ad group performance and optimize your targeting strategies for better results.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-dollar-sign fa-3x text-warning mb-3"></i>
+                        <h5 class="card-title">Cost Analysis</h5>
+                        <p class="card-text">
+                            Track your advertising spend and analyze cost-effectiveness across all campaigns.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #ddd;">
-    <h3>What you'll need:</h3>
-    <div style="text-align: left;">
-        <h4>1. Google Cloud Console OAuth2 Credentials:</h4>
-        <ul>
-            <li>Google Client ID</li>
-            <li>Google Client Secret</li>
-            <li>Set redirect URI to: <code>http://localhost:5000/callback</code></li>
-        </ul>
-        
-        <h4>2. Your Google Ads Information:</h4>
-        <ul>
-            <li>Your Google Ads Customer ID (Manager Account ID)</li>
-            <li>Make sure MCM (Multi Customer Manager) is active</li>
-        </ul>
+        <!-- Getting Started Section -->
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-rocket"></i> Getting Started
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if session.authenticated %}
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="text-success">
+                                <i class="fas fa-check-circle"></i> You're all set up!
+                            </h5>
+                            <p class="mb-0">
+                                Your Google Ads account is connected and ready to use. 
+                                Access your dashboard to view campaign data and analytics.
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-chart-line"></i> View Dashboard
+                            </a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5>Connect Your Google Ads Account</h5>
+                            <p class="mb-4">
+                                To get started, you'll need to connect your Google Ads account. 
+                                Follow these simple steps:
+                            </p>
+                            
+                            <ol class="list-group list-group-numbered">
+                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold">Prepare Your Credentials</div>
+                                        Have your Google Ads Developer Token, Client ID, Client Secret, and Customer ID ready
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">1</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold">Complete Setup</div>
+                                        Enter your credentials and authorize access to your Google Ads account
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">2</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-start">
+                                    <div class="ms-2 me-auto">
+                                        <div class="fw-bold">Start Monitoring</div>
+                                        Access your dashboard and begin analyzing your campaign performance
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">3</span>
+                                </li>
+                            </ol>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="d-grid">
+                                <a href="{{ url_for('setup') }}" class="btn btn-primary btn-lg mb-3">
+                                    <i class="fas fa-cog"></i> Start Setup
+                                </a>
+                                <small class="text-muted">
+                                    <i class="fas fa-lock"></i> Your data is secure and encrypted
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Requirements Section -->
+        {% if not session.authenticated %}
+        <div class="row mt-5">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle"></i> Requirements
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i> Google Ads Account
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i> Developer Token
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i> OAuth 2.0 Credentials
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success"></i> Customer ID
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shield-alt"></i> Security
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-lock text-success"></i> Secure OAuth 2.0 Authentication
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-key text-success"></i> Encrypted Token Storage
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-eye-slash text-success"></i> No Data Persistence
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-refresh text-success"></i> Automatic Token Refresh
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
