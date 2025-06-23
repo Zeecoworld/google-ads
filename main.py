@@ -7,9 +7,14 @@ from google.ads.googleads.errors import GoogleAdsException
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-change-this-in-production'
+app.secret_key = os.getenv('SECRET_KEY')
 
 # Configuration
 SCOPES = ['https://www.googleapis.com/auth/adwords']
@@ -131,7 +136,7 @@ def index():
 def setup():
     if request.method == 'POST':
         # Store user credentials in session
-        session['developer_token'] = "YBZD_5dUUepZbdK40NshIg"
+        session['developer_token'] = os.getenv('DEVELOPER_TOKEN')
         session['client_id'] = request.form['client_id']
         session['client_secret'] = request.form['client_secret']
         session['customer_id'] = request.form['customer_id']
