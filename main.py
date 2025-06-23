@@ -283,7 +283,7 @@ class GoogleAdsManager:
     def _extract_google_ads_error_messages(self, ex, customer_id):
         """Helper to extract and format GoogleAdsException error messages."""
         error_details = []
-        for error in ex.errors:
+        for error in ex.error:
             if error.error_code.authentication_error:
                 if error.error_code.authentication_error == self.client.get_type('AuthenticationErrorEnum').AuthenticationError.CUSTOMER_NOT_FOUND:
                     error_details.append(f"Customer ID '{customer_id}' not found or you do not have direct access to it.")
