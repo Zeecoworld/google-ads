@@ -327,7 +327,7 @@ def callback():
             scopes=SCOPES,
             state=session['state']
         )
-        flow.redirect_uri = REDEDICT_URI
+        flow.redirect_uri = REDIRECT_URI
         
         flow.fetch_token(authorization_response=request.url)
         
