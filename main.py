@@ -8,7 +8,6 @@ from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
 from dotenv import load_dotenv
-import os
 
 # Load environment variables from .env file
 load_dotenv()
@@ -37,11 +36,13 @@ class GoogleAdsManager:
     def initialize_client(self):
         """Initialize Google Ads client with credentials"""
         try:
+            # Fixed credentials dictionary with all required fields
             credentials = {
                 "developer_token": self.developer_token,
                 "client_id": self.client_id,
                 "client_secret": self.client_secret,
                 "refresh_token": self.refresh_token,
+                "token_uri": "https://oauth2.googleapis.com/token",  # Added missing token_uri
                 "use_proto_plus": True
             }
             self.client = GoogleAdsClient.load_from_dict(credentials)
@@ -193,8 +194,15 @@ def callback():
         # Exchange authorization code for tokens
         flow.fetch_token(authorization_response=request.url)
         
-        # Store refresh token
-        session['refresh_token'] = flow.credentials.refresh_token
+        # Store refresh token - check if it exists
+        if flow.credentials.refresh_token:
+            session['refresh_token'] = flow.credentials.refresh_token
+        else:
+            # If no refresh token, this might be a re-authorization
+            # You may need to handle this case differently
+            flash('No refresh token received. You may need to revoke access and re-authorize.', 'warning')
+            return redirect(url_for('setup'))
+        
         session['authenticated'] = True
         
         flash('Successfully authenticated with Google Ads!', 'success')
@@ -208,6 +216,14 @@ def callback():
 def dashboard():
     if not session.get('authenticated'):
         flash('Please authenticate first', 'error')
+        return redirect(url_for('setup'))
+    
+    # Check if we have all required session data
+    required_fields = ['developer_token', 'client_id', 'client_secret', 'refresh_token', 'customer_id']
+    missing_fields = [field for field in required_fields if not session.get(field)]
+    
+    if missing_fields:
+        flash(f'Missing required credentials: {", ".join(missing_fields)}', 'error')
         return redirect(url_for('setup'))
     
     # Initialize Google Ads manager
@@ -264,9 +280,3 @@ def api_campaigns():
     
     campaigns = ads_manager.get_campaigns()
     return jsonify(campaigns)
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('Logged out successfully', 'success')
-    return redirect(url_for('index'))
