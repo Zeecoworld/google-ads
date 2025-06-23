@@ -44,7 +44,9 @@ class GoogleAdsManager:
                 "client_secret": self.client_secret,
                 "refresh_token": self.refresh_token,
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "use_proto_plus": True
+                "use_proto_plus": True,
+                # Add login_customer_id for manager accounts
+                "login_customer_id": self.customer_id
             }
             
             # Add access token if available
@@ -71,7 +73,11 @@ class GoogleAdsManager:
                 WHERE customer.id = {}
             """.format(self.customer_id)
             
-            response = ga_service.search(customer_id=self.customer_id, query=query)
+            # For manager accounts, use login_customer_id
+            response = ga_service.search(
+                customer_id=self.customer_id, 
+                query=query
+            )
             for row in response:
                 return row.customer.manager
             return False
@@ -99,6 +105,7 @@ class GoogleAdsManager:
                 WHERE customer_client.level <= 1
             """
             
+            # For manager accounts, the customer_id is already set as login_customer_id
             response = ga_service.search(customer_id=self.customer_id, query=query)
             clients = []
             
@@ -155,6 +162,9 @@ class GoogleAdsManager:
                     WHERE segments.date DURING LAST_30_DAYS
                 """
             
+            # IMPORTANT: When querying client accounts through manager,
+            # the target_customer_id is the client ID, but login_customer_id 
+            # (set in credentials) remains the manager ID
             response = ga_service.search(customer_id=str(target_customer_id), query=query)
             campaigns = []
             
@@ -228,6 +238,7 @@ class GoogleAdsManager:
                     AND segments.date DURING LAST_30_DAYS
                 """
             
+            # Same pattern: target_customer_id for the query, login_customer_id set in credentials
             response = ga_service.search(customer_id=str(target_customer_id), query=query)
             ad_groups = []
             
